@@ -1,6 +1,7 @@
 import {BrowserFS} from './fs.js';
 import {BrowserStorage} from './storage.js';
 import {installBrowserGestures} from './gestures.js';
+import {touchFeedback} from './touch.js';
 import {installFrameGate} from './frames.js';
 import {installBrowserClipboard} from './clipboard.js';
 
@@ -8,15 +9,29 @@ const run = new URLSearchParams(location.search).get('run');
 const host = parent.nanolatheBrowserHost;
 const config = host?.getLaunch(run);
 const post = (type, payload) => parent.postMessage({channel:'nanolathe', run, type, payload}, location.origin);
+// Phones start at their landscape shape. Only the display size is replaced;
+// every other stored preference is kept, and nothing is written until the
+// engine itself saves its settings.
+function phoneSettings(install, display) {
+  const path = '/settings/settings.json', node = install.nodes.get(path);
+  let settings = {version:1};
+  try { if (node?.bytes) settings = JSON.parse(new TextDecoder().decode(node.bytes)); } catch {}
+  settings.display = {...settings.display, width:display.width, height:display.height};
+  const next = install.add(path, new TextEncoder().encode(JSON.stringify(settings)));
+  if (node) next.mtime = node.mtime;
+  next.dirty = false;
+}
 if (config) {
   // Online play keeps a hidden page in step between the engine's frames.
   installFrameGate(window);
-  const stopGestures = installBrowserGestures(window, event => window.nanolatheBrowserGesture?.(event));
+  const stopGestures = installBrowserGestures(window, event => window.nanolatheBrowserGesture?.(event),
+    touchFeedback(document));
   const stopClipboard = installBrowserClipboard(window, text => window.nanolatheBrowserPaste?.(text));
   try {
     const storage = new BrowserStorage(config.storage, () => post('storage'));
     const install = new BrowserFS(config.files, storage, text => post('log', text), result => post('persistence', result));
     await install.restore();
+    if (config.display) phoneSettings(install, config.display);
     window.fs = install.fs; window.process = install.process; window.path = install.path;
     const build = await config.module;
     await new Promise((resolve, reject) => {

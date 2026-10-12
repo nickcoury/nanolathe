@@ -14,13 +14,14 @@ function fixture() {
     removeEventListener(type, handler, capture) {
       assert.equal(handlers.get(type), handler); assert.equal(capture, true); handlers.delete(type);
     },
-    setTimeout(fn, delay) { assert.equal(delay, 180); timers.set(++id, fn); return id; },
+    // Wheel quiet timers only; touch.js owns the single-finger timers.
+    setTimeout(fn, delay) { if (delay !== 180) return 0; timers.set(++id, fn); return id; },
     clearTimeout(id) { timers.delete(id); },
   };
   const stop = installBrowserGestures(win, event => events.push(event));
   const send = (type, fields = {}) => {
     const event = {type, target:{tagName:'CANVAS', focus() {}}, clientX:400, clientY:300,
-      deltaX:0, deltaY:0, deltaMode:0, ctrlKey:false, touches:[],
+      deltaX:0, deltaY:0, deltaMode:0, ctrlKey:false, touches:[], changedTouches:[],
       prevented:false, stopped:false,
       preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }, ...fields};
     handlers.get(type)(event); return event;

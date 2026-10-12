@@ -1,4 +1,4 @@
-import {demoManifest, loadDemo, importedContent} from './content.js';
+import {demoManifest, loadDemo, importedContent, officialDemoManifest} from './content.js';
 import {BrowserHost} from './host.js';
 import {BrowserStorage} from './storage.js';
 import {collectEntry} from './folder.js';
@@ -8,6 +8,9 @@ let content = null, manifest = null, storage = null, storageEpoch = 0, loading =
 let measurement = null, profiling = false, pendingMeasureTick = null, activeConfig = null, performanceRuns = [];
 let storedURLs = [], heapURL, measurementsURL;
 const failedWrites = new Map();
+// Touch devices get the full-viewport landscape player (mobile host policy).
+const mobile = matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0;
+document.body.classList.toggle('mobile', mobile);
 const setStatus = text => { $('status').textContent = text; };
 const appendLog = text => { $('log').textContent = ($('log').textContent + text + '\n').slice(-40000); };
 const host = new BrowserHost($('game'), (type, payload) => {
@@ -59,13 +62,21 @@ async function start() {
     const module = modulePromise(); module.catch(() => {});
     setStatus('Preparing ' + content.name + '…');
     await host.start({...activeConfig, renderer:$('renderer').value, name:content.name,
-      storage:storage.name, files:content.files, module});
+      storage:storage.name, files:content.files, module, display:mobile ? phoneDisplay() : null});
     if (epoch !== launchEpoch) return;
     $('welcome').hidden = true; $('controls').hidden = false; $('game-view').hidden = false;
+    document.body.classList.toggle('playing', mobile); document.body.classList.remove('menu-open');
   } catch (error) { if (epoch === launchEpoch && error.name !== 'AbortError') { setStatus(error.message); appendLog(error.message); } }
   finally { if (epoch === launchEpoch) { launching = false; $('start').disabled = false; } }
 }
+// The battle HUD needs 480 logical rows; the width follows the phone's
+// landscape shape so the letterbox disappears.
+function phoneDisplay() {
+  const long = Math.max(innerWidth, innerHeight), short = Math.min(innerWidth, innerHeight);
+  return {width:Math.max(640, Math.min(1280, Math.round(480 * long / short / 2) * 2)), height:480};
+}
 function retireView() {
+  document.body.classList.remove('playing', 'menu-open');
   if (document.fullscreenElement === $('game-view')) document.exitFullscreen().catch(() => {});
   $('game-view').hidden = true;
 }
@@ -77,7 +88,23 @@ function back() {
   $('demo').disabled = !manifest; $('demo').textContent = 'Try the demo';
   $('measure').textContent = 'Measure 20 seconds'; setStatus('Choose the demo or your game folder.');
 }
-$('start').onclick = start;
+$('start').onclick = () => { document.body.classList.remove('menu-open'); start(); };
+$('touch-menu').onclick = () => document.body.classList.toggle('menu-open');
+// On-screen keys reach the engine as ordinary key events on its canvas.
+function gameKey(type, key, code, keyCode) {
+  const frame = $('game').contentWindow, canvas = frame?.document.querySelector('canvas');
+  canvas?.dispatchEvent(new frame.KeyboardEvent(type, {key, code, keyCode, which:keyCode, bubbles:true, cancelable:true,
+    shiftKey:$('touch-shift').getAttribute('aria-pressed') === 'true'}));
+  canvas?.focus();
+}
+const tapKey = (key, code, keyCode) => () => { gameKey('keydown', key, code, keyCode); setTimeout(() => gameKey('keyup', key, code, keyCode), 90); };
+$('touch-options').onclick = tapKey('F2', 'F2', 113);
+$('touch-map').onclick = tapKey('F9', 'F9', 120); // Modern: fit the whole map, again to return
+$('touch-shift').onclick = () => {
+  const on = $('touch-shift').getAttribute('aria-pressed') !== 'true';
+  $('touch-shift').setAttribute('aria-pressed', String(on));
+  gameKey(on ? 'keydown' : 'keyup', 'Shift', 'ShiftLeft', 16);
+};
 $('stop').onclick = back;
 $('fullscreen').onclick = () => $('game-view').requestFullscreen().catch(error => setStatus(error.message));
 $('leave-fullscreen').onclick = () => document.exitFullscreen().catch(error => setStatus(error.message));
@@ -200,7 +227,8 @@ async function refreshStorage() {
   } catch (error) { if (epoch === storageEpoch) $('stored').textContent = 'Local storage unavailable: ' + error.message; }
 }
 try {
-  manifest = await demoManifest(new URL('demo/manifest.json', location.href));
+  manifest = await demoManifest(new URL('demo/manifest.json', location.href)).catch(() => null) ||
+    await demoManifest(officialDemoManifest, undefined, [location.origin, new URL(officialDemoManifest).origin]);
   $('demo').disabled = !manifest;
   $('demo').textContent = manifest ? 'Try the demo' : 'Demo unavailable in this build';
   $('demo-info').textContent = manifest ? 'Three campaign missions · ' +

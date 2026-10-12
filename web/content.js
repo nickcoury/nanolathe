@@ -18,12 +18,15 @@ export function importedContent(files) {
   const kind = /tademo\.hpi$/i.test(marker[0]) ? 'demo' : 'retail';
   return {kind, id: kind, name: kind === 'demo' ? 'Local demo' : 'Your TotalA folder', files: mounted};
 }
-export async function demoManifest(url, signal) {
+// The official site's demo, for builds that host no demo of their own. Its
+// files are fetched cross-origin and verified against its manifest's digests.
+export const officialDemoManifest = 'https://nanolathe.gg/play/demo/manifest.json';
+export async function demoManifest(url, signal, trusted = [location.origin]) {
   const response = await fetch(url, {signal, cache: 'no-cache'});
   if (response.status === 404) return null;
   if (!response.ok) throw new Error('Demo manifest request failed (' + response.status + ').');
   const manifest = await response.json(), base = new URL('.', response.url || url);
-  if (base.origin !== location.origin) throw new Error('Demo manifest must be same-origin.');
+  if (!trusted.includes(base.origin)) throw new Error('Demo manifest must be same-origin.');
   if (manifest.schema !== 1 || manifest.kind !== 'ta-demo' || !Array.isArray(manifest.files) || manifest.files.length !== 2) {
     throw new Error('Unsupported demo manifest.');
   }
@@ -33,7 +36,7 @@ export async function demoManifest(url, signal) {
     const name = file.path.toLowerCase(), asset = new URL(file.url, base);
     if (!demoNames.has(name) || names.has(name) || !Number.isSafeInteger(file.size) || file.size <= 0 ||
         file.size > 64 * 1024 * 1024 || !/^[a-f0-9]{64}$/.test(file.sha256) ||
-        asset.origin !== location.origin || !asset.pathname.startsWith(base.pathname) || asset.search || asset.hash) {
+        asset.origin !== base.origin || !asset.pathname.startsWith(base.pathname) || asset.search || asset.hash) {
       throw new Error('Invalid demo asset manifest.');
     }
     names.add(name); file.url = asset.href;
