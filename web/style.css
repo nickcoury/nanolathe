@@ -31,3 +31,6 @@ body.mobile.playing #touch-bar{display:flex;gap:6px;position:fixed;top:max(4px,e
 @media(orientation:portrait){body.mobile.playing #rotate{display:flex;position:fixed;inset:0;z-index:20;align-items:center;justify-content:center;
   padding:24px;text-align:center;font-size:20px;background:#101419}}
 #touch-help{color:#c3ccd2;line-height:1.5;margin-top:4px}
+/* Phones cannot pick a game folder; keep the demo button above the fold. */
+body.mobile #drop{display:none}
+@media(max-height:500px){body.mobile header{padding:6px 16px}body.mobile #welcome{margin:4px auto}body.mobile h2{font-size:20px;margin:6px 0}body.mobile #welcome p{margin:6px 0;font-size:14px}}
