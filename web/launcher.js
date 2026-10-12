@@ -63,6 +63,8 @@ async function start() {
     // Begin fetching/compiling before the iframe asks for the module.
     const module = modulePromise(); module.catch(() => {});
     setStatus('Preparing ' + content.name + '…');
+    if (mobile) await untilLandscape();
+    if (epoch !== launchEpoch) return;
     await host.start({...activeConfig, renderer:$('renderer').value, name:content.name,
       storage:storage.name, files:content.files, module, display:mobile ? phoneDisplay() : null});
     if (epoch !== launchEpoch) return;
@@ -73,8 +75,24 @@ async function start() {
 }
 // The battle HUD needs 480 logical rows; the width follows the phone's
 // landscape shape so the letterbox disappears.
+// The display size is fixed when the engine starts, so a phone held upright
+// shows the turn prompt and starts once it is sideways.
+function untilLandscape() {
+  if (innerWidth >= innerHeight) return Promise.resolve();
+  $('game-view').hidden = false; document.body.classList.add('playing');
+  return new Promise(resolve => {
+    const check = () => { if (innerWidth >= innerHeight) { removeEventListener('resize', check); resolve(); } };
+    addEventListener('resize', check);
+  });
+}
 function phoneDisplay() {
-  const long = Math.max(innerWidth, innerHeight), short = Math.min(innerWidth, innerHeight);
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+  document.body.append(probe);
+  const inset = side => parseFloat(getComputedStyle(probe)['padding' + side]) || 0;
+  const [top, right, bottom, left] = ['Top', 'Right', 'Bottom', 'Left'].map(inset);
+  probe.remove();
+  const long = Math.max(innerWidth - left - right, 1), short = Math.max(innerHeight - top - bottom, 1);
   return {width:Math.max(640, Math.min(1280, Math.round(480 * long / short / 2) * 2)), height:480};
 }
 function retireView() {
