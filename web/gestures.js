@@ -55,6 +55,9 @@ export function installBrowserGestures(win, emit, feedback) {
     // screen; two fingers are camera gestures where the battle admits them.
     consume(event);
     endWheel();
+    // Audio unlocks on a document touchend inside a real gesture (Safari
+    // requires it); the consumed event no longer reaches the document.
+    if (event.type === 'touchend' && win.Event) win.document?.dispatchEvent(new win.Event('touchend'));
     const points = Array.from(event.touches).sort((a,b) => a.identifier-b.identifier);
     const cancelled = event.type === 'touchcancel';
     if (points.length >= 2 || cancelled) { multi = multi || points.length >= 2; pointer.cancel(); }

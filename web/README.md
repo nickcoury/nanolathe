@@ -347,6 +347,37 @@ stayed fixed. Camera/GUI ownership, touch geometry, idle-poll pointer retention,
 batched pinch anchors and cancellation pass the authored regressions. Physical
 touchscreen acceptance remains unverified. Captures are outside the repository.
 
+## Touch controls
+
+On a touch device (`pointer: coarse`, or `?touch=1`; `?touch=0` turns it off)
+the running game fills the viewport in landscape and one finger drives the
+engine's ordinary mouse input (`web/touch.js`): a tap is a left click, which
+under the default interface type selects and gives contextual orders; a drag
+is a left drag (box select, sliders); a still hold of 380 ms becomes the right
+button (deselect, cancel, minimap camera drag). Two fingers keep the camera
+gestures above. A tap holds the button for 70 ms so Ebitengine's per-frame
+sampling sees it, and the pointer then parks off the canvas so it neither
+edge-scrolls nor hovers. Touches are kept 3 px inside the canvas border.
+
+The engine's display mode is set to 480 rows at the phone's landscape aspect
+on each touch launch (about 1028×480 on an iPhone), replacing only the stored
+width and height. On-screen keys send F2 (Menu), F9 (Map, Modern's whole-map
+view), a latched Shift, and a keyboard button that types through a hidden
+input inside the game page. iPhone Safari has no element fullscreen; Share →
+Add to Home Screen runs the page without browser chrome.
+
+Builds that host no demo of their own fetch the official demo manifest and
+files from nanolathe.gg (served with `Access-Control-Allow-Origin: *`) and
+verify their digests as usual.
+
+Verified on 2026-10-12 with emulated iPhone 15 landscape touch input in
+headless Chromium 156 (hardware GL) and Playwright WebKit: the first demo
+mission was played to Victory by touch alone (tap select and move, box
+select, Attack order, hold to deselect, two-finger pan and pinch, minimap
+hold-drag, whole-map orders), the second mission's base building placed
+structures, and a save named with the keyboard bridge was loaded again.
+A physical iPhone has not been tested.
+
 ## Persistent browser files
 
 Settings now live at `/settings/settings.json` and saves at `/saves`, using the

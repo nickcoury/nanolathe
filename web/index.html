@@ -17,12 +17,13 @@
     <input id="folder" type="file" webkitdirectory multiple><label for="folder">Choose game folder</label>
   </div>
 </section>
-<div id="controls" hidden><span id="content-name"></span><button id="start">Restart game</button><button id="stop">Back to launcher</button><button id="fullscreen">Fullscreen</button></div>
+<div id="controls" hidden><span id="content-name"></span><button id="start">Restart game</button><button id="stop">Back to launcher</button><button id="fullscreen">Fullscreen</button>
+<small class="touch-only" id="touch-help">Tap: select, order, press buttons<br>Drag: box-select · Hold: right-click<br>Two fingers: pan · Pinch: zoom<br>Map: whole-map view · Shift: queue orders<br>⌨: type (save names, chat)</small></div>
 <p id="status" role="status" aria-live="polite">Opening browser host…</p>
 <p id="storage-error" role="alert" hidden></p>
 <div id="game-view" hidden><iframe id="game" title="Nanolathe game" allow="autoplay; fullscreen" hidden></iframe>
 <button id="leave-fullscreen">Exit fullscreen</button>
-<div id="touch-bar"><button id="touch-menu" aria-label="Game controls">☰</button><button id="touch-options">Menu</button><button id="touch-map">Map</button><button id="touch-shift" aria-pressed="false">Shift</button></div>
+<div id="touch-bar"><button id="touch-menu" aria-label="Game controls">☰</button><button id="touch-options">Menu</button><button id="touch-map">Map</button><button id="touch-shift" aria-pressed="false">Shift</button><button id="touch-keys" aria-label="Keyboard">⌨</button></div>
 <div id="rotate">Turn your phone sideways to play.</div></div>
 <details id="advanced"><summary>Graphics and diagnostics</summary>
 <div class="row"><label>Renderer <select id="renderer"><option value="modern">Modern (GPU)</option><option value="classic">Classic (software)</option></select></label>

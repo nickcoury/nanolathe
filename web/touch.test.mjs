@@ -52,14 +52,16 @@ test('moving past the slop is a left drag from the touch origin', async () => {
   await f.advance(longPressMillis * 2); // a drag never becomes a hold
   f.pointer.end(f.point(160, 170));
   await f.advance(clickHoldMillis);
-  assert.deepEqual(f.mouse.slice(0, 4), [['mousemove', 0, 100, 100], ['mousedown', 0, 100, 100],
+  assert.deepEqual(f.mouse.slice(0, 5), [['mousemove', 0, 100, 100], ['mousemove', 0, 100, 100], ['mousedown', 0, 100, 100],
     ['mousemove', 0, 130, 140], ['mousemove', 0, 160, 170]]);
   assert.deepEqual(buttons(f.mouse), [['mousedown', 0, 100, 100], ['mouseup', 0, 160, 170]]);
 });
 
-test('a still hold is the right button, which can then drag', async () => {
+test('a touch hovers at once, and a still hold is the right button, which can then drag', async () => {
   const f = fixture();
   f.pointer.begin(f.target, f.point(40, 40));
+  await f.advance(0);
+  assert.deepEqual(f.mouse, [['mousemove', 0, 40, 40]]);
   await f.advance(longPressMillis);
   assert.deepEqual(buttons(f.mouse), [['mousedown', 2, 40, 40]]);
   f.pointer.move(f.point(60, 45));
@@ -92,4 +94,13 @@ test('a quick double tap keeps both clicks in order at the same point', async ()
   await f.advance(clickHoldMillis * 2);
   assert.deepEqual(buttons(f.mouse), [['mousedown', 0, 70, 80], ['mouseup', 0, 70, 80],
     ['mousedown', 0, 70, 80], ['mouseup', 0, 70, 80]]);
+});
+
+test('touches at the canvas border stay off the edge-scroll strip', async () => {
+  const f = fixture();
+  f.target.getBoundingClientRect = () => ({left:0, top:0, right:400, bottom:300});
+  f.pointer.begin(f.target, f.point(0, 299));
+  f.pointer.end(f.point(0, 299));
+  await f.advance(clickHoldMillis);
+  assert.deepEqual(buttons(f.mouse), [['mousedown', 0, 3, 297], ['mouseup', 0, 3, 297]]);
 });

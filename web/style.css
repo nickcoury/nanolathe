@@ -30,3 +30,4 @@ body.mobile.playing #touch-bar{display:flex;gap:6px;position:fixed;top:max(4px,e
 #touch-bar button[aria-pressed=true]{background:#9a6b1d;border-color:#f0b44c}
 @media(orientation:portrait){body.mobile.playing #rotate{display:flex;position:fixed;inset:0;z-index:20;align-items:center;justify-content:center;
   padding:24px;text-align:center;font-size:20px;background:#101419}}
+#touch-help{color:#c3ccd2;line-height:1.5;margin-top:4px}

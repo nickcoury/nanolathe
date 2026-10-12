@@ -1,0 +1,49 @@
+# Fork-only: publish the asset-free browser build of the mobile-touch branch
+# to GitHub Pages. The demo is not hosted here; the launcher fetches the
+# official site's demo files and verifies their digests.
+name: pages
+
+on:
+  push:
+    branches: [mobile-touch]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.repository != 'nanolathe-gg/nanolathe'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: browser host regressions
+        run: tools/browser-check
+      - name: build asset-free browser distribution
+        run: tools/browser-build --out _site && touch _site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

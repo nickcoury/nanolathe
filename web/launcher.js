@@ -9,7 +9,9 @@ let measurement = null, profiling = false, pendingMeasureTick = null, activeConf
 let storedURLs = [], heapURL, measurementsURL;
 const failedWrites = new Map();
 // Touch devices get the full-viewport landscape player (mobile host policy).
-const mobile = matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0;
+// ?touch=1 or ?touch=0 overrides the detection.
+const touchParam = new URLSearchParams(location.search).get('touch');
+const mobile = touchParam ? touchParam === '1' : matchMedia('(pointer: coarse)').matches;
 document.body.classList.toggle('mobile', mobile);
 const setStatus = text => { $('status').textContent = text; };
 const appendLog = text => { $('log').textContent = ($('log').textContent + text + '\n').slice(-40000); };
@@ -90,16 +92,52 @@ function back() {
 }
 $('start').onclick = () => { document.body.classList.remove('menu-open'); start(); };
 $('touch-menu').onclick = () => document.body.classList.toggle('menu-open');
+// Touching the game moves focus into its frame, which closes the menu.
+addEventListener('blur', () => document.body.classList.remove('menu-open'));
+if (!document.fullscreenEnabled) $('fullscreen').hidden = true; // iPhone Safari
 // On-screen keys reach the engine as ordinary key events on its canvas.
 function gameKey(type, key, code, keyCode) {
   const frame = $('game').contentWindow, canvas = frame?.document.querySelector('canvas');
   canvas?.dispatchEvent(new frame.KeyboardEvent(type, {key, code, keyCode, which:keyCode, bubbles:true, cancelable:true,
     shiftKey:$('touch-shift').getAttribute('aria-pressed') === 'true'}));
-  canvas?.focus();
+  if (frame?.document.activeElement?.id !== 'touch-text') canvas?.focus();
 }
 const tapKey = (key, code, keyCode) => () => { gameKey('keydown', key, code, keyCode); setTimeout(() => gameKey('keyup', key, code, keyCode), 90); };
 $('touch-options').onclick = tapKey('F2', 'F2', 113);
 $('touch-map').onclick = tapKey('F9', 'F9', 120); // Modern: fit the whole map, again to return
+// The phone keyboard types through a hidden input inside the game page, so
+// the game keeps its focus. Its edits become key events; one space stays in
+// it so Backspace always produces an edit.
+const keyCode = ch => /^[a-z]$/i.test(ch) ? 'Key' + ch.toUpperCase() : /^[0-9]$/.test(ch) ? 'Digit' + ch : ch === ' ' ? 'Space' : '';
+const typeKey = (key, code) => { gameKey('keydown', key, code, 0); gameKey('keyup', key, code, 0); };
+function textInput() {
+  const doc = $('game').contentDocument;
+  let input = doc?.getElementById('touch-text');
+  if (!doc || input) return input;
+  input = Object.assign(doc.createElement('input'), {id:'touch-text', value:' ', autocomplete:'off', spellcheck:false});
+  input.setAttribute('autocapitalize', 'off'); input.setAttribute('autocorrect', 'off'); input.setAttribute('enterkeyhint', 'done');
+  // 16px avoids iOS zooming the page on focus.
+  input.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;border:0;padding:0;font-size:16px';
+  input.addEventListener('input', event => {
+    if (event.inputType?.startsWith('delete')) typeKey('Backspace', 'Backspace');
+    else for (const ch of event.data ?? input.value.slice(1)) typeKey(ch, keyCode(ch));
+    input.value = ' ';
+  });
+  input.addEventListener('keydown', event => {
+    if (!['Enter', 'Escape', 'Tab'].includes(event.key)) return;
+    event.preventDefault(); typeKey(event.key, event.key);
+    if (event.key !== 'Tab') input.blur();
+  });
+  input.addEventListener('blur', () => doc.querySelector('canvas')?.focus());
+  doc.body.append(input);
+  return input;
+}
+$('touch-keys').onclick = () => {
+  const input = textInput();
+  if (!input) return;
+  if (input.ownerDocument.activeElement === input) { input.blur(); return; }
+  input.value = ' '; input.focus();
+};
 $('touch-shift').onclick = () => {
   const on = $('touch-shift').getAttribute('aria-pressed') !== 'true';
   $('touch-shift').setAttribute('aria-pressed', String(on));

@@ -13,11 +13,19 @@ export const clickHoldMillis = 70;
 // on a screen edge (edge scrolling) or over a unit (hover).
 export const parkMillis = 400;
 const parked = -100000;
+const edgeInset = 3;
 
 export function createTouchPointer(win, onFeedback = () => {}) {
   let touch = null, chain = Promise.resolve(), parkTimer, epoch = 0;
   const later = millis => new Promise(resolve => win.setTimeout(resolve, millis));
   const mouse = (target, type, button, x, y) => {
+    // A finger at the very border would sit on the edge-scroll strip and
+    // pan the camera until it parks. Keep touches just inside the canvas.
+    const box = x !== parked && target.getBoundingClientRect?.();
+    if (box) {
+      x = Math.min(Math.max(x, box.left + edgeInset), box.right - edgeInset);
+      y = Math.min(Math.max(y, box.top + edgeInset), box.bottom - edgeInset);
+    }
     const buttons = type === 'mouseup' ? 0 : button === 2 ? 2 : button === 0 && type !== 'mousemove' ? 1 : 0;
     target.dispatchEvent(new win.MouseEvent(type, {bubbles:true, cancelable:true, view:win,
       clientX:x, clientY:y, screenX:x, screenY:y, button, buttons}));
@@ -38,6 +46,9 @@ export function createTouchPointer(win, onFeedback = () => {}) {
     epoch++; win.clearTimeout(parkTimer);
     touch = {target, id:point.identifier, start:{x:point.clientX, y:point.clientY}, last:{x:point.clientX, y:point.clientY}, button:null};
     const current = touch;
+    // Hover under the finger shows what a release would do, such as a
+    // building's footprint, before anything is pressed.
+    queue(() => mouse(target, 'mousemove', 0, point.clientX, point.clientY));
     current.timer = win.setTimeout(() => {
       if (touch !== current || current.button !== null) return;
       press(2, current.last);
